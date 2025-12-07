@@ -59,4 +59,8 @@ export class UsersService {
     }
     return this.usersRepository.remove(user);
   }
+
+  findByEmail(email: string) {
+    return this.usersRepository.findOne({ where: { email } });
+  }
 }
