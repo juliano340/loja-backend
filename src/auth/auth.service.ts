@@ -10,7 +10,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // Método de login
   async login(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
 
