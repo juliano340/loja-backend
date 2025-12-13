@@ -39,4 +39,19 @@ export class Order {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: 'jsonb', nullable: true })
+  shippingAddress?: {
+    street: string;
+    number: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
+
+  @Column({ nullable: true })
+  paidAt?: Date;
+
+  @Column({ nullable: true })
+  cancelledAt?: Date;
 }

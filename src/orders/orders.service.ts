@@ -66,6 +66,7 @@ export class OrdersService {
           product,
           quantity: i.quantity,
           unitPrice: product.price,
+          productName: product.name,
         });
         items.push(item);
 
@@ -79,6 +80,7 @@ export class OrdersService {
         items,
         total: total.toFixed(2),
         status: OrderStatus.PENDING,
+        shippingAddress: dto.shippingAddress,
       });
 
       const saved = await queryRunner.manager.save(order);
@@ -130,6 +132,8 @@ export class OrdersService {
         throw new NotFoundException('Pedido não encontrado');
       }
 
+      this.validateStatusTransition(order.status, status);
+
       if (order.status === OrderStatus.CANCELLED) {
         await queryRunner.commitTransaction();
         return order;
@@ -147,6 +151,14 @@ export class OrdersService {
         }
       }
 
+      if (status === OrderStatus.PAID) {
+        order.paidAt = new Date();
+      }
+
+      if (status === OrderStatus.CANCELLED) {
+        order.cancelledAt = new Date();
+      }
+
       order.status = status;
       const saved = await queryRunner.manager.save(order);
 
@@ -157,6 +169,18 @@ export class OrdersService {
       throw error;
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  private validateStatusTransition(current: OrderStatus, next: OrderStatus) {
+    const allowedTransitions: Record<OrderStatus, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.PAID, OrderStatus.CANCELLED],
+      [OrderStatus.PAID]: [OrderStatus.CANCELLED],
+      [OrderStatus.CANCELLED]: [],
+    };
+
+    if (!allowedTransitions[current].includes(next)) {
+      throw new BadRequestException(`Transição inválida: ${current} → ${next}`);
     }
   }
 }

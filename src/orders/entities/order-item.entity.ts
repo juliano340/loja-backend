@@ -21,4 +21,7 @@ export class OrderItem {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   unitPrice: string;
+
+  @Column({ nullable: true })
+  productName: string;
 }
