@@ -1,0 +1,42 @@
+import { User } from '../../users/entities/user.entity';
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  OneToMany,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { OrderItem } from './order-item.entity';
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED',
+}
+
+@Entity('orders')
+export class Order {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => User, { eager: false, nullable: false })
+  user: User;
+
+  @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
+  items: OrderItem[];
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  total: string;
+
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+  status: OrderStatus;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}
