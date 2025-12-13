@@ -48,7 +48,7 @@ export class OrdersService {
 
       // valida estoque + monta itens
       const items: OrderItem[] = [];
-      let total = 0;
+      let subtotal = 0;
 
       for (const i of dto.items) {
         const product = map.get(i.productId)!;
@@ -60,7 +60,7 @@ export class OrdersService {
         }
 
         const unitPriceNumber = Number(product.price);
-        total += unitPriceNumber * i.quantity;
+        subtotal += unitPriceNumber * i.quantity;
 
         const item = queryRunner.manager.create(OrderItem, {
           product,
@@ -75,9 +75,18 @@ export class OrdersService {
         await queryRunner.manager.save(product);
       }
 
+      const shippingFee = this.calculateShippingFee(
+        subtotal,
+        dto.shippingAddress,
+      );
+
+      const total = subtotal + shippingFee;
+
       const order = queryRunner.manager.create(Order, {
         user,
         items,
+        subtotal: subtotal.toFixed(2),
+        shippingFee: shippingFee.toFixed(2),
         total: total.toFixed(2),
         status: OrderStatus.PENDING,
         shippingAddress: dto.shippingAddress,
@@ -182,5 +191,16 @@ export class OrdersService {
     if (!allowedTransitions[current].includes(next)) {
       throw new BadRequestException(`Transição inválida: ${current} → ${next}`);
     }
+  }
+
+  private calculateShippingFee(
+    subtotal: number,
+    address: { state: string },
+  ): number {
+    if (subtotal >= 200) {
+      return 0;
+    }
+
+    return address.state === 'RS' ? 15 : 25;
   }
 }

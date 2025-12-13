@@ -28,7 +28,13 @@ export class Order {
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  subtotal: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  shippingFee: string;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   total: string;
 
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
