@@ -121,7 +121,6 @@ export class OrdersService {
     await queryRunner.startTransaction();
 
     try {
-      // 1️⃣ BUSCA O PEDIDO COM LOCK (SEM RELATIONS)
       const order = await queryRunner.manager.findOne(Order, {
         where: { id: orderId },
         lock: { mode: 'pessimistic_write' },
@@ -131,13 +130,11 @@ export class OrdersService {
         throw new NotFoundException('Pedido não encontrado');
       }
 
-      // idempotência
       if (order.status === OrderStatus.CANCELLED) {
         await queryRunner.commitTransaction();
         return order;
       }
 
-      // 2️⃣ SE CANCELAR → BUSCA ITENS SEPARADAMENTE
       if (status === OrderStatus.CANCELLED) {
         const items = await queryRunner.manager.find(OrderItem, {
           where: { order: { id: order.id } },
@@ -150,7 +147,6 @@ export class OrdersService {
         }
       }
 
-      // 3️⃣ ATUALIZA STATUS
       order.status = status;
       const saved = await queryRunner.manager.save(order);
 
