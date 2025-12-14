@@ -25,7 +25,9 @@ import { OrdersModule } from './orders/orders.module';
         password: config.get<string>('DB_PASSWORD'),
         database: config.get<string>('DB_DATABASE'),
         autoLoadEntities: true,
-        synchronize: true,
+        synchronize: false,
+        migrations: ['dist/migrations/*.js'],
+        migrationsRun: true,
       }),
     }),
 
