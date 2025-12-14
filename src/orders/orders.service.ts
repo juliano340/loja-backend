@@ -10,10 +10,12 @@ import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { User } from '../users/entities/user.entity';
+import { CouponsService } from 'src/coupons/coupons.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
+    private readonly couponsService: CouponsService,
     private readonly dataSource: DataSource,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     @InjectRepository(Product)
@@ -80,8 +82,33 @@ export class OrdersService {
         dto.shippingAddress,
       );
 
-      const total = subtotal + shippingFee;
+      let discountAmount = 0;
+      let couponSnapshot: {
+        couponCode: string;
+        discountType: string;
+        discountValue: string;
+        discountAmount: string;
+      } | null = null;
 
+      if (dto.couponCode) {
+        const applied = await this.couponsService.applyCoupon({
+          userId: user.id,
+          couponCode: dto.couponCode,
+          subtotal: subtotal.toFixed(2),
+        });
+
+        discountAmount = Number(applied.discountAmount);
+
+        couponSnapshot = {
+          couponCode: applied.coupon.code,
+          discountType: applied.coupon.type,
+          discountValue: applied.coupon.value,
+          discountAmount: applied.discountAmount,
+        };
+      }
+
+      // total = subtotal - desconto + frete
+      const total = subtotal - discountAmount + shippingFee;
       const order = queryRunner.manager.create(Order, {
         user,
         items,
@@ -90,6 +117,12 @@ export class OrdersService {
         total: total.toFixed(2),
         status: OrderStatus.PENDING,
         shippingAddress: dto.shippingAddress,
+
+        // ✅ snapshot do cupom no pedido
+        couponCode: couponSnapshot?.couponCode ?? null,
+        discountType: couponSnapshot?.discountType ?? null,
+        discountValue: couponSnapshot?.discountValue ?? null,
+        discountAmount: couponSnapshot?.discountAmount ?? null,
       });
 
       const saved = await queryRunner.manager.save(order);
@@ -162,6 +195,16 @@ export class OrdersService {
 
       if (status === OrderStatus.PAID) {
         order.paidAt = new Date();
+
+        // ✅ consumir cupom no pagamento (contabiliza uso)
+        if (order.couponCode) {
+          await this.couponsService.consumeOnPaidWithManager({
+            manager: queryRunner.manager,
+            userId: order.userId, // ✅ aqui
+            orderId: order.id,
+            couponCode: order.couponCode,
+          });
+        }
       }
 
       if (status === OrderStatus.CANCELLED) {

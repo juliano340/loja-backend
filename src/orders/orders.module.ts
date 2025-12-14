@@ -6,9 +6,13 @@ import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
+import { CouponsModule } from 'src/coupons/coupons.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order, OrderItem, Product, User])],
+  imports: [
+    TypeOrmModule.forFeature([Order, OrderItem, Product, User]),
+    CouponsModule,
+  ],
   controllers: [OrdersController],
   providers: [OrdersService],
 })

@@ -28,10 +28,10 @@ export class Order {
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
   subtotal: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
   shippingFee: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
@@ -60,4 +60,18 @@ export class Order {
 
   @Column({ nullable: true })
   cancelledAt?: Date;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  couponCode?: string | null;
+
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  discountType: string | null; // 'PERCENT' | 'FIXED'
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  discountValue: string | null;
+
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  discountAmount: string | null;
+
+  @Column() userId: number;
 }

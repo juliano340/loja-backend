@@ -1,5 +1,11 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { ShippingAddressDto } from './shipping-address.dto';
 
 export class CreateOrderDto {
@@ -13,4 +19,8 @@ export class CreateOrderDto {
   @ValidateNested()
   @Type(() => ShippingAddressDto)
   shippingAddress: ShippingAddressDto;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
