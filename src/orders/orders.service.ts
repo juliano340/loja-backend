@@ -238,12 +238,16 @@ export class OrdersService {
 
   private calculateShippingFee(
     subtotal: number,
-    address: { state: string },
+    address?: { state: string },
   ): number {
     if (subtotal >= 200) {
       return 0;
     }
 
-    return address.state === 'RS' ? 15 : 25;
+    if (!address) {
+      return 0;
+    }
+
+    return address?.state === 'RS' ? 15 : 25;
   }
 }

@@ -16,6 +16,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from '../auth/get-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('users')
 export class UsersController {
@@ -67,5 +68,11 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Patch('me/password')
+  changePassword(@GetUser() user: any, @Body() dto: ChangePasswordDto) {
+    return this.usersService.changePassword(user.userId, dto);
   }
 }

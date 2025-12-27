@@ -1,10 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -60,7 +65,38 @@ export class UsersService {
     return this.usersRepository.remove(user);
   }
 
-  findByEmail(email: string) {
-    return this.usersRepository.findOne({ where: { email } });
+  async findByEmail(email: string) {
+    return this.usersRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'password', 'isActive', 'isAdmin'],
+    });
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'password'], // ⚠️ IMPORTANTE
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
+
+    if (!passwordMatches) {
+      throw new UnauthorizedException('Senha atual inválida');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.usersRepository.update(userId, {
+      password: hashedPassword,
+    });
+
+    return { message: 'Senha atualizada com sucesso' };
   }
 }
