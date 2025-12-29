@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { CouponsModule } from './coupons/coupons.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { CouponsModule } from './coupons/coupons.module';
     ProductsModule,
     OrdersModule,
     CouponsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

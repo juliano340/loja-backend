@@ -74,4 +74,10 @@ export class Order {
   discountAmount: string | null;
 
   @Column() userId: number;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeCheckoutSessionId?: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeLastEventId?: string;
 }

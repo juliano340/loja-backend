@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -88,7 +89,7 @@ export class UsersService {
     );
 
     if (!passwordMatches) {
-      throw new UnauthorizedException('Senha atual inválida');
+      throw new BadRequestException('Senha atual inválida');
     }
 
     const hashedPassword = await bcrypt.hash(dto.newPassword, 10);

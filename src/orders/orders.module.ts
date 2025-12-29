@@ -15,5 +15,6 @@ import { CouponsModule } from 'src/coupons/coupons.module';
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
+  exports: [OrdersService],
 })
 export class OrdersModule {}

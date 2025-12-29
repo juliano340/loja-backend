@@ -52,9 +52,7 @@ export class CouponsService {
 
   async update(id: number, dto: UpdateCouponDto) {
     const coupon = await this.findOne(id);
-
     if (dto.code) dto.code = this.normalizeCode(dto.code);
-
     Object.assign(coupon, dto);
     return this.couponsRepo.save(coupon);
   }
@@ -76,10 +74,8 @@ export class CouponsService {
     const coupon = await this.couponsRepo.findOne({ where: { code } });
     if (!coupon) throw new BadRequestException('Cupom inválido.');
 
-    // ativo
     if (!coupon.isActive) throw new BadRequestException('Cupom inativo.');
 
-    // janela de validade (se existir)
     const now = new Date();
     if (coupon.startsAt && now < coupon.startsAt) {
       throw new BadRequestException('Cupom ainda não está válido.');
@@ -88,7 +84,6 @@ export class CouponsService {
       throw new BadRequestException('Cupom expirado.');
     }
 
-    // subtotal mínimo (se existir)
     if (
       coupon.minSubtotal &&
       this.toCents(params.subtotal) < this.toCents(coupon.minSubtotal)
@@ -98,8 +93,7 @@ export class CouponsService {
       );
     }
 
-    // limites (total e por usuário) - aqui validamos já no PENDING,
-    // e validamos de novo no PAID para evitar corrida.
+    // ✅ se já tiver uso registrado (PAID), bloqueia aqui mesmo
     await this.assertLimits(coupon.id, params.userId, coupon);
 
     const discountAmount = this.computeDiscount(params.subtotal, coupon);
@@ -118,7 +112,6 @@ export class CouponsService {
     });
     if (!coupon) throw new BadRequestException('Cupom não encontrado.');
 
-    // revalidar limites no momento do PAID (anti-corrida)
     await this.assertLimits(coupon.id, params.userId, coupon);
 
     const usage = this.usagesRepo.create({
@@ -156,7 +149,6 @@ export class CouponsService {
     if (coupon.type === CouponType.FIXED) {
       discountCents = this.toCents(coupon.value);
     } else {
-      // percentual: value = "10.00" => 10%
       const percent = Number(coupon.value);
       discountCents = Math.floor((subtotalCents * percent) / 100);
       if (coupon.maxDiscount) {
@@ -167,7 +159,6 @@ export class CouponsService {
       }
     }
 
-    // nunca pode exceder subtotal
     discountCents = Math.min(discountCents, subtotalCents);
 
     return this.fromCents(discountCents);
@@ -178,7 +169,6 @@ export class CouponsService {
   }
 
   private toCents(value: string): number {
-    // converte "12.34" => 1234
     const n = Number(value);
     if (Number.isNaN(n)) throw new BadRequestException('Valor inválido.');
     return Math.round(n * 100);
@@ -194,14 +184,28 @@ export class CouponsService {
     orderId: number;
     couponCode: string;
   }) {
-    const { manager, userId, orderId } = params;
+    const { manager, orderId } = params;
+
+    const userId = Number(params.userId);
+    if (!Number.isFinite(userId)) {
+      throw new BadRequestException('userId inválido para consumir cupom.');
+    }
+
     const code = params.couponCode.trim().toUpperCase();
 
     const coupon = await manager.findOne(Coupon, { where: { code } });
     if (!coupon) throw new BadRequestException('Cupom não encontrado.');
 
-    // idempotência: evita duplicar uso se chamar PAID duas vezes
-    const already = await manager.findOne(CouponUsage, { where: { orderId } });
+    // idempotência por pedido
+    const alreadyByOrder = await manager.findOne(CouponUsage, {
+      where: { orderId },
+    });
+    if (alreadyByOrder) return;
+
+    // idempotência por (cupom+user+order) (extra segurança)
+    const already = await manager.findOne(CouponUsage, {
+      where: { couponId: coupon.id, userId, orderId },
+    });
     if (already) return;
 
     // limites

@@ -33,7 +33,6 @@ export class OrdersService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      // trava linhas de produto para evitar corrida de estoque
       const products = await queryRunner.manager.find(Product, {
         where: { id: In(productIds), isActive: true },
         lock: { mode: 'pessimistic_write' },
@@ -45,10 +44,8 @@ export class OrdersService {
         );
       }
 
-      // mapa rápido
       const map = new Map(products.map((p) => [p.id, p]));
 
-      // valida estoque + monta itens
       const items: OrderItem[] = [];
       let subtotal = 0;
 
@@ -72,7 +69,6 @@ export class OrdersService {
         });
         items.push(item);
 
-        // baixa estoque
         product.stock -= i.quantity;
         await queryRunner.manager.save(product);
       }
@@ -107,8 +103,8 @@ export class OrdersService {
         };
       }
 
-      // total = subtotal - desconto + frete
       const total = subtotal - discountAmount + shippingFee;
+
       const order = queryRunner.manager.create(Order, {
         user,
         items,
@@ -118,7 +114,6 @@ export class OrdersService {
         status: OrderStatus.PENDING,
         shippingAddress: dto.shippingAddress,
 
-        // ✅ snapshot do cupom no pedido
         couponCode: couponSnapshot?.couponCode ?? null,
         discountType: couponSnapshot?.discountType ?? null,
         discountValue: couponSnapshot?.discountValue ?? null,
@@ -196,11 +191,18 @@ export class OrdersService {
       if (status === OrderStatus.PAID) {
         order.paidAt = new Date();
 
-        // ✅ consumir cupom no pagamento (contabiliza uso)
         if (order.couponCode) {
+          const resolvedUserId = Number(order.userId);
+
+          if (!Number.isFinite(resolvedUserId)) {
+            throw new BadRequestException(
+              'Não foi possível identificar o usuário do pedido para consumir o cupom.',
+            );
+          }
+
           await this.couponsService.consumeOnPaidWithManager({
             manager: queryRunner.manager,
-            userId: order.userId, // ✅ aqui
+            userId: resolvedUserId,
             orderId: order.id,
             couponCode: order.couponCode,
           });
@@ -240,14 +242,8 @@ export class OrdersService {
     subtotal: number,
     address?: { state: string },
   ): number {
-    if (subtotal >= 200) {
-      return 0;
-    }
-
-    if (!address) {
-      return 0;
-    }
-
+    if (subtotal >= 200) return 0;
+    if (!address) return 0;
     return address?.state === 'RS' ? 15 : 25;
   }
 }
