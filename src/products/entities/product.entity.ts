@@ -4,7 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { ProductCategory } from './product-category.entity';
 
 @Entity('products')
 export class Product {
@@ -34,4 +36,7 @@ export class Product {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => ProductCategory, (pc) => pc.product, { cascade: true })
+  categoryLinks: ProductCategory[];
 }

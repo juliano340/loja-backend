@@ -7,6 +7,10 @@ import {
   Min,
   IsBoolean,
   IsUrl,
+  IsArray,
+  ArrayMinSize,
+  IsInt,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -36,4 +40,9 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID('4', { each: true })
+  categoryIds: string[];
 }

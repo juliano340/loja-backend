@@ -15,6 +15,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { Query } from '@nestjs/common';
 
 @Controller('products')
 export class ProductsController {
@@ -28,8 +29,14 @@ export class ProductsController {
   }
 
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  findAll(
+    @Query('category') categorySlug?: string, // ex: ?category=tenis
+    @Query('categoryId') categoryId?: string, // ex: ?categoryId=3
+  ) {
+    return this.productsService.findAll({
+      categorySlug,
+      categoryId: categoryId ? Number(categoryId) : undefined,
+    });
   }
 
   @Get(':id')
