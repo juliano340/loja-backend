@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
   Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from './orders.service';
@@ -43,5 +44,13 @@ export class OrdersController {
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
     return this.ordersService.updateStatus(Number(id), dto.status);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id')
+  async getById(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
+    // se você usa req.user.id:
+    const userId = req.user.id;
+    return this.ordersService.findByIdForUser(userId, id);
   }
 }

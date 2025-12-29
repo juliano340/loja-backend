@@ -23,6 +23,16 @@ export class OrdersService {
     @InjectRepository(User) private readonly usersRepo: Repository<User>,
   ) {}
 
+  async findByIdForUser(userId: number, orderId: number) {
+    const order = await this.ordersRepo.findOne({
+      where: { id: orderId, userId },
+      relations: ['items'], // se isso der erro, a gente remove e pronto
+    });
+
+    if (!order) throw new NotFoundException('Pedido não encontrado.');
+    return order;
+  }
+
   async create(userId: number, dto: CreateOrderDto) {
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuário não encontrado.');

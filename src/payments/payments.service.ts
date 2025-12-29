@@ -153,18 +153,26 @@ export class PaymentsService {
       discounts = [{ coupon: coupon.id }];
     }
 
-    // 5) cria a sessão Stripe Checkout
+    // ✅ 5) monta success_url robusta com orderId (e session_id opcional)
+    const success = new URL(successUrl);
+    success.searchParams.set('orderId', String(order.id));
+    // opcional: útil pra debug/diagnóstico; Stripe substitui
+    success.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}');
+
+    // 6) cria a sessão Stripe Checkout
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: lineItems,
       discounts,
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: success.toString(),
       cancel_url: cancelUrl,
       metadata: {
         orderId: String(order.id),
         userId: String(order.userId),
       },
     });
+
+    console.log('[stripe] success_url:', success.toString());
 
     order.stripeCheckoutSessionId = session.id;
     await this.ordersRepo.save(order);
