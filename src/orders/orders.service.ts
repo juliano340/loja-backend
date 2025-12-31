@@ -5,17 +5,20 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
+
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { User } from '../users/entities/user.entity';
 import { CouponsService } from 'src/coupons/coupons.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly couponsService: CouponsService,
+    private readonly inventoryService: InventoryService,
     private readonly dataSource: DataSource,
     @InjectRepository(Order) private readonly ordersRepo: Repository<Order>,
     @InjectRepository(Product)
@@ -26,7 +29,7 @@ export class OrdersService {
   async findByIdForUser(userId: number, orderId: number) {
     const order = await this.ordersRepo.findOne({
       where: { id: orderId, userId },
-      relations: ['items'], // se isso der erro, a gente remove e pronto
+      relations: ['items'],
     });
 
     if (!order) throw new NotFoundException('Pedido não encontrado.');
@@ -42,7 +45,10 @@ export class OrdersService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
+
     try {
+      // Mantém lock nos produtos para consistência no snapshot do pedido.
+      // O controle real do estoque agora é no Inventory (pessimistic_write no inventory_items).
       const products = await queryRunner.manager.find(Product, {
         where: { id: In(productIds), isActive: true },
         lock: { mode: 'pessimistic_write' },
@@ -59,17 +65,12 @@ export class OrdersService {
       const items: OrderItem[] = [];
       let subtotal = 0;
 
+      // 1) monta itens e subtotal (SEM baixar estoque ainda)
       for (const i of dto.items) {
         const product = map.get(i.productId)!;
 
-        if (product.stock < i.quantity) {
-          throw new BadRequestException(
-            `Estoque insuficiente para: ${product.name}`,
-          );
-        }
-
-        const unitPriceNumber = Number(product.price);
-        subtotal += unitPriceNumber * i.quantity;
+        const unitPrice = Number(product.price);
+        subtotal += unitPrice * i.quantity;
 
         const item = queryRunner.manager.create(OrderItem, {
           product,
@@ -77,10 +78,8 @@ export class OrdersService {
           unitPrice: product.price,
           productName: product.name,
         });
-        items.push(item);
 
-        product.stock -= i.quantity;
-        await queryRunner.manager.save(product);
+        items.push(item);
       }
 
       const shippingFee = this.calculateShippingFee(
@@ -130,7 +129,20 @@ export class OrdersService {
         discountAmount: couponSnapshot?.discountAmount ?? null,
       });
 
+      // 2) salva primeiro pra ter ID (rollback desfaz se estoque falhar)
       const saved = await queryRunner.manager.save(order);
+
+      // 3) agora baixa estoque com referenceId do pedido
+      for (const item of items) {
+        await this.inventoryService.removeStock(
+          item.product.id,
+          item.quantity,
+          'sale',
+          `order-${saved.id}`, // ✅ fica salvo no stock_movements.reference_id
+          'Baixa na criação do pedido (PENDING)',
+          queryRunner.manager,
+        );
+      }
 
       await queryRunner.commitTransaction();
       return saved;
@@ -193,9 +205,17 @@ export class OrdersService {
         });
 
         for (const item of items) {
-          item.product.stock += item.quantity;
-          await queryRunner.manager.save(item.product);
+          await this.inventoryService.addStock(
+            item.product.id,
+            item.quantity,
+            'system',
+            `order-${order.id}`,
+            'Devolução por cancelamento',
+            queryRunner.manager,
+          );
         }
+
+        order.cancelledAt = new Date();
       }
 
       if (status === OrderStatus.PAID) {
@@ -217,10 +237,6 @@ export class OrdersService {
             couponCode: order.couponCode,
           });
         }
-      }
-
-      if (status === OrderStatus.CANCELLED) {
-        order.cancelledAt = new Date();
       }
 
       order.status = status;
@@ -254,6 +270,6 @@ export class OrdersService {
   ): number {
     if (subtotal >= 200) return 0;
     if (!address) return 0;
-    return address?.state === 'RS' ? 15 : 25;
+    return address.state === 'RS' ? 15 : 25;
   }
 }
