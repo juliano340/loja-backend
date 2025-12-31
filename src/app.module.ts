@@ -10,6 +10,7 @@ import { OrdersModule } from './orders/orders.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CategoriesModule } from './categories/categories.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { CategoriesModule } from './categories/categories.module';
     CouponsModule,
     PaymentsModule,
     CategoriesModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
