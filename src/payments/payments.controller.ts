@@ -40,8 +40,6 @@ export class PaymentsController {
       signature,
     );
 
-    console.log('[stripe webhook]', result);
-
     return result;
   }
 }

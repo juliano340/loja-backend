@@ -11,6 +11,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -43,15 +44,19 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
-    const dataToUpdate: Partial<User> = { ...updateUserDto };
+  async update(id: number, dto: UpdateUserDto | AdminUpdateUserDto) {
+    const dataToUpdate: Partial<User> = {};
 
-    if (updateUserDto.password) {
-      const saltRounds = 10;
-      dataToUpdate.password = await bcrypt.hash(
-        updateUserDto.password,
-        saltRounds,
-      );
+    if (dto.name !== undefined) dataToUpdate.name = dto.name;
+    if (dto.email !== undefined) dataToUpdate.email = dto.email;
+    if ('isAdmin' in dto && dto.isAdmin !== undefined) {
+      dataToUpdate.isAdmin = dto.isAdmin;
+    }
+    if ('isActive' in dto && dto.isActive !== undefined) {
+      dataToUpdate.isActive = dto.isActive;
+    }
+    if ('password' in dto && dto.password) {
+      dataToUpdate.password = await bcrypt.hash(dto.password, 10);
     }
 
     await this.usersRepository.update(id, dataToUpdate);

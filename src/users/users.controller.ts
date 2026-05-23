@@ -17,6 +17,7 @@ import { GetUser } from '../auth/get-user.decorator';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -35,8 +36,8 @@ export class UsersController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('me')
-  updateMe(@GetUser() user: any, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(user.userId, updateUserDto);
+  updateMe(@GetUser() user: any, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(user.userId, dto);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -58,9 +59,9 @@ export class UsersController {
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() dto: AdminUpdateUserDto,
   ) {
-    return this.usersService.update(id, updateUserDto);
+    return this.usersService.update(id, dto);
   }
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)

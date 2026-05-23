@@ -172,8 +172,6 @@ export class PaymentsService {
       },
     });
 
-    console.log('[stripe] success_url:', success.toString());
-
     order.stripeCheckoutSessionId = session.id;
     await this.ordersRepo.save(order);
 

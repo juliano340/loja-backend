@@ -4,7 +4,8 @@ export class CreateCategoriesAndProductCategories1767031703462 implements Migrat
     name = 'CreateCategoriesAndProductCategories1767031703462'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+    await queryRunner.query(`
             CREATE TABLE "categories" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
                 "name" character varying(120) NOT NULL,

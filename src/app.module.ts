@@ -12,10 +12,37 @@ import { PaymentsModule } from './payments/payments.module';
 import { CategoriesModule } from './categories/categories.module';
 import { InventoryModule } from './inventory/inventory.module';
 
+function validateEnv(config: Record<string, unknown>) {
+  const required = [
+    'DB_HOST',
+    'DB_PORT',
+    'DB_USERNAME',
+    'DB_PASSWORD',
+    'DB_DATABASE',
+    'JWT_SECRET',
+    'JWT_EXPIRES_IN',
+    'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
+    'CHECKOUT_SUCCESS_URL',
+    'CHECKOUT_CANCEL_URL',
+    'CURRENCY',
+  ];
+
+  const missing = required.filter((key) => !config[key]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Variáveis de ambiente obrigatórias faltando: ${missing.join(', ')}`,
+    );
+  }
+
+  return config;
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnv,
     }),
 
     TypeOrmModule.forRootAsync({
@@ -31,7 +58,7 @@ import { InventoryModule } from './inventory/inventory.module';
         autoLoadEntities: true,
         synchronize: false,
         migrations: ['dist/migrations/*.js'],
-        migrationsRun: true,
+        migrationsRun: config.get<string>('TYPEORM_MIGRATIONS_RUN') === 'true',
       }),
     }),
 

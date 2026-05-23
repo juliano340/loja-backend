@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, LessThan, Repository } from 'typeorm';
 
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
@@ -250,6 +250,22 @@ export class OrdersService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async cancelExpiredPendingOrders(): Promise<number> {
+    const ttlMinutes = Number(process.env.PENDING_ORDER_TTL_MINUTES) || 30;
+    const cutoff = new Date(Date.now() - ttlMinutes * 60 * 1000);
+
+    const expired = await this.ordersRepo.find({
+      where: { status: OrderStatus.PENDING, createdAt: LessThan(cutoff) },
+    });
+
+    let cancelled = 0;
+    for (const order of expired) {
+      await this.updateStatus(order.id, OrderStatus.CANCELLED);
+      cancelled++;
+    }
+    return cancelled;
   }
 
   private validateStatusTransition(current: OrderStatus, next: OrderStatus) {

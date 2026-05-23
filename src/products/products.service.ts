@@ -10,6 +10,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 import { ProductCategory } from './entities/product-category.entity';
 import { Category } from '../categories/entities/category.entity';
+import { InventoryService } from '../inventory/inventory.service';
 
 type FindAllFilters = {
   categorySlug?: string;
@@ -27,15 +28,19 @@ export class ProductsService {
 
     @InjectRepository(Category)
     private readonly categoriesRepository: Repository<Category>,
+
+    private readonly inventoryService: InventoryService,
   ) {}
 
   async create(createProductDto: CreateProductDto) {
     // 1) valida categorias
     await this.assertCategoriesExist(createProductDto.categoryIds);
 
+    const { categoryIds, stock, ...productData } = createProductDto;
+
     // 2) cria produto
     const product = this.productsRepository.create({
-      ...createProductDto,
+      ...productData,
       price: createProductDto.price.toFixed(2),
     });
 
@@ -48,6 +53,16 @@ export class ProductsService {
         categoryId,
       })),
     );
+
+    if (stock > 0) {
+      await this.inventoryService.addStock(
+        saved.id,
+        stock,
+        'admin',
+        `product-${saved.id}`,
+        'Estoque inicial do produto',
+      );
+    }
 
     // 4) retorna completo com categories
     return this.findOne(saved.id);
@@ -70,7 +85,7 @@ export class ProductsService {
     }
 
     const products = await qb.getMany();
-    return products.map((p) => this.toProductResponse(p));
+    return Promise.all(products.map((p) => this.toProductResponse(p)));
   }
 
   async findOne(id: number) {
@@ -92,6 +107,8 @@ export class ProductsService {
     // garante que existe
     await this.findOne(id); // já valida e já teria relations, mas aqui só validamos existência
 
+    const currentStock = await this.inventoryService.getAvailableQuantity(id);
+
     // price (se vier)
     if (updateProductDto.price !== undefined) {
       (updateProductDto as any).price = updateProductDto.price.toFixed(2);
@@ -112,7 +129,20 @@ export class ProductsService {
     }
 
     // atualiza campos do produto (sem categoryIds)
-    const { categoryIds, ...rest } = updateProductDto as any;
+    const { categoryIds, stock, ...rest } = updateProductDto as any;
+
+    if (stock !== undefined) {
+      const delta = stock - currentStock;
+      if (delta !== 0) {
+        await this.inventoryService.adjustStockDelta(
+          id,
+          delta,
+          'admin',
+          `product-${id}`,
+          'Ajuste de estoque do produto',
+        );
+      }
+    }
 
     await this.productsRepository.update({ id }, rest);
 
@@ -141,15 +171,18 @@ export class ProductsService {
     }
   }
 
-  private toProductResponse(product: Product) {
+  private async toProductResponse(product: Product) {
     const categories = (product.categoryLinks ?? [])
       .map((pc) => pc.category)
       .filter(Boolean);
 
     const { categoryLinks, ...rest } = product as any;
 
+    const stock = await this.inventoryService.getAvailableQuantity(product.id);
+
     return {
       ...rest,
+      stock,
       categories,
     };
   }

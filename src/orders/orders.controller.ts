@@ -34,6 +34,13 @@ export class OrdersController {
 
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('admin')
+  @Post('cancel-expired')
+  cancelExpired() {
+    return this.ordersService.cancelExpiredPendingOrders();
+  }
+
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
   @Get()
   findAll() {
     return this.ordersService.findAll();
@@ -49,8 +56,7 @@ export class OrdersController {
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async getById(@Req() req: any, @Param('id', ParseIntPipe) id: number) {
-    // se você usa req.user.id:
-    const userId = req.user.id;
+    const userId = req.user.userId;
     return this.ordersService.findByIdForUser(userId, id);
   }
 }

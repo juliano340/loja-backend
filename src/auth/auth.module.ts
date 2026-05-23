@@ -15,7 +15,8 @@ import { PassportModule } from '@nestjs/passport';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET') ?? 'default_secret';
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret) throw new Error('JWT_SECRET não configurado');
         const expiresIn = parseInt(
           config.get<string>('JWT_EXPIRES_IN') ?? '3600',
           10,
