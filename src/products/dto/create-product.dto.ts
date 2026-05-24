@@ -21,6 +21,11 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
   description?: string;
 
   @Type(() => Number)
