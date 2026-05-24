@@ -15,6 +15,7 @@ import { InventoryService } from '../inventory/inventory.service';
 type FindAllFilters = {
   categorySlug?: string;
   categoryId?: number;
+  includeInactive?: boolean;
 };
 
 @Injectable()
@@ -73,8 +74,11 @@ export class ProductsService {
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.categoryLinks', 'pc')
       .leftJoinAndSelect('pc.category', 'c')
-      .where('p.isActive = :isActive', { isActive: true })
       .orderBy('p.createdAt', 'DESC');
+
+    if (!filters.includeInactive) {
+      qb.where('p.isActive = :isActive', { isActive: true });
+    }
 
     if (filters.categoryId) {
       qb.andWhere('c.id = :categoryId', { categoryId: filters.categoryId });
@@ -86,6 +90,10 @@ export class ProductsService {
 
     const products = await qb.getMany();
     return Promise.all(products.map((p) => this.toProductResponse(p)));
+  }
+
+  findAllForAdmin() {
+    return this.findAll({ includeInactive: true });
   }
 
   async findOne(id: number) {

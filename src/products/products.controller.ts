@@ -39,6 +39,13 @@ export class ProductsController {
     });
   }
 
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('admin')
+  @Get('admin/all')
+  findAllForAdmin() {
+    return this.productsService.findAllForAdmin();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);
